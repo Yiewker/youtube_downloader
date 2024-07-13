@@ -1,6 +1,6 @@
 # youtube批量下载器
 
-#### 部署save_path
+#### 部署
 
 ```
 git clone https://github.com/Yiewker/youtube_downloader

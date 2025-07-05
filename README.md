@@ -1,29 +1,146 @@
-# youtube批量下载器
+# YouTube 批量下载器 v2.0
 
-#### 部署
+简化版YouTube批量下载器，集成了反检测、智能重试和代理支持功能。
+
+## 项目结构
 
 ```
-git clone https://github.com/Yiewker/youtube_downloader
+youtube_downloader/
+├── youtube_downloader.bat          # 启动脚本（自动检测代理和Python环境）
+├── youtube_downloader.py           # 主程序（基于yt_dlp_gui5.py改进）
+├── youtube_downloader_config.yaml  # 配置文件
+├── requirements.txt                # Python依赖
+├── yt-dlp.exe                      # YouTube下载器
+├── test_urls.txt                   # 测试链接文件
+├── his/v1/                         # 历史版本文件夹
+└── README.md                       # 说明文档
 ```
 
-如果需要用aira2的话需要将aria2添加到path
+## 快速开始
 
-#### 运行
+### 1. 双击运行
+直接双击 `youtube_downloader.bat` 即可启动程序。
 
-双击ytdl.bat即可。
+### 2. 准备链接文件
+创建一个txt文件，每行一个YouTube链接，例如：
+```
+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+https://www.youtube.com/watch?v=oHg5SJYRHA0
+```
 
-如果不想用aria2托管下载，可以直接运行 python yt_dlp_gui.py
+### 3. 开始下载
+- 点击"选择链接文件"按钮选择txt文件
+- 或直接将txt文件拖放到程序窗口
+- 程序会自动开始下载
 
-#### 功能
+## 功能特点
 
-将需要下载的youtube链接集合的txt文件拖入程序窗口，即可开始下载到指定的路径
+### 🚀 智能启动检测
+- 自动检测Python环境（配置在yaml中）
+- 自动测试代理连接（7890端口）
+- 代理不可用时给出详细提示
 
-更改config.yaml中的max_workers参数可以控制下载的最大线程数
+### 🛡️ 反检测机制
+- 模拟真实浏览器请求头
+- 随机下载间隔（避免被限制）
+- 智能重试机制（最多3次）
+- 限制并发数（最多2个）
 
-save_path控制视频存储路径
+### 📊 智能格式选择
+- 自动选择最佳可用格式
+- 优先级：1080p60 > 720p60 > 1080p30 > 720p30 > 480p > 360p
+- 自动回退到可用格式
 
-txt文件需要每行一个youtube链接
+### 🔧 配置化设计
+- 所有设置都在yaml配置文件中
+- 支持自定义Python路径
+- 支持自定义保存路径
+- 支持代理开关
 
-#### 测试
+### 💾 错误处理
+- 失败的链接自动保存到 `*_failed.txt`
+- 详细的错误日志
+- 支持断点续传
 
-目前只在win10测试过，其他平台没试过
+## 配置说明
+
+### 主要配置项
+```yaml
+# Python解释器路径
+python_path: "J:\\app\\Python\\Python310\\python.exe"
+
+# 下载设置
+download:
+  save_path: "J:\\Users\\ccd\\Downloads\\"  # 保存路径
+  max_workers: 2                            # 并发数
+  proxy:
+    enabled: true                           # 是否使用代理
+    url: "http://127.0.0.1:7890"           # 代理地址
+
+# 视频质量设置
+video:
+  format_priority:                          # 格式优先级
+    - "bestvideo[height=1080][fps=60]+bestaudio/best"
+    - "bestvideo[height=720][fps=60]+bestaudio/best"
+    # ...更多格式
+```
+
+## 代理设置
+
+### Clash配置
+1. 启动Clash
+2. 确保监听端口为7890
+3. 允许局域网连接
+4. 确保能正常访问YouTube
+
+### 无代理使用
+如果不需要代理，可以在配置文件中设置：
+```yaml
+download:
+  proxy:
+    enabled: false
+```
+
+## 故障排除
+
+### 代理连接失败
+- 检查Clash是否启动
+- 确认端口是否为7890
+- 检查防火墙设置
+- 尝试重启代理软件
+
+### Python路径错误
+- 检查配置文件中的python_path
+- 确保Python已正确安装
+- 确保路径使用双反斜杠 `\\`
+
+### 下载失败
+- 检查网络连接
+- 确认YouTube链接有效
+- 查看失败链接文件获取详细错误
+
+## 更新日志
+
+### v2.0 (当前版本)
+- 重构项目结构，化繁为简
+- 集成智能启动脚本
+- 添加配置文件支持
+- 增强反检测机制
+- 改进错误处理
+- 移除历史版本到his/v1文件夹
+
+### v1.x (历史版本)
+- 多个实验性版本
+- 基础下载功能
+- 简单GUI界面
+
+## 依赖要求
+
+- Python 3.10+
+- tkinterdnd2 >= 0.3.0
+- pyyaml >= 6.0
+- requests >= 2.28.0
+
+## 许可证
+
+本项目仅供学习和个人使用，请遵守YouTube的服务条款。

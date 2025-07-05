@@ -1,0 +1,32 @@
+behavior:
+  download_interval: 2
+  ignore_errors: true
+  max_retries: 3
+  random_delay_range:
+  - 1
+  - 3
+  retry_delay: 5
+  unique_filename: true
+debug:
+  enabled: false
+  save_logs: false
+  show_formats: false
+download:
+  max_workers: 2
+  proxy:
+    enabled: true
+    test_url: https://www.google.com
+    timeout: 10
+    url: http://127.0.0.1:7890
+  save_path: J:\Users\ccd\Downloads\
+python_path: J:\app\Python\Python310\python.exe
+video:
+  format_priority:
+  - bestvideo[height=1080][fps=60]+bestaudio/best
+  - bestvideo[height=720][fps=60]+bestaudio/best
+  - bestvideo[height=1080][fps=30]+bestaudio/best
+  - bestvideo[height=720][fps=30]+bestaudio/best
+  - bestvideo[height=480]+bestaudio/best
+  - bestvideo[height=360]+bestaudio/best
+  max_height: 1080
+  output_format: mp4

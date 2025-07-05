@@ -38,6 +38,7 @@ class YouTubeDownloader:
         self.proxy_var = None
         self.debug_var = None
         self.low_quality_var = None
+        self.proxy_test_var = None
         self.url_text = None
         
     def load_config(self):
@@ -56,6 +57,8 @@ class YouTubeDownloader:
             self.config['download']['save_path'] = self.save_path_entry.get()
             self.config['download']['max_workers'] = int(self.max_workers_entry.get())
             self.config['download']['proxy']['enabled'] = self.proxy_var.get()
+            if hasattr(self, 'proxy_test_var'):
+                self.config['download']['proxy']['test_on_startup'] = self.proxy_test_var.get()
             self.config['debug']['enabled'] = self.debug_var.get()
             
             with open(CONFIG_FILE, 'w', encoding='utf-8') as file:
@@ -442,6 +445,12 @@ class YouTubeDownloader:
         self.low_quality_var = tk.BooleanVar(value=False)
         low_quality_check = ttk.Checkbutton(main_frame, text="优先下载最低画质", variable=self.low_quality_var)
         low_quality_check.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=5)
+        row += 1
+
+        # 启动时测试代理
+        self.proxy_test_var = tk.BooleanVar(value=self.config['download']['proxy'].get('test_on_startup', False))
+        proxy_test_check = ttk.Checkbutton(main_frame, text="启动时测试代理连接", variable=self.proxy_test_var)
+        proxy_test_check.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=5)
         row += 1
 
         # 分隔线

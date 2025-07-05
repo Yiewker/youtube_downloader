@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 chcp 65001 >nul
 title YouTube Downloader
 
@@ -10,6 +11,7 @@ echo.
 :: Set config file path
 set CONFIG_FILE=youtube_downloader_config.yaml
 set PYTHON_PATH=
+set PROXY_TEST_ENABLED=false
 
 :: Check if config file exists
 if not exist "%CONFIG_FILE%" (
@@ -22,6 +24,14 @@ if not exist "%CONFIG_FILE%" (
 :: Read Python path from YAML config file (simple parsing)
 for /f "tokens=2* delims=:" %%a in ('findstr "python_path:" "%CONFIG_FILE%"') do (
     set PYTHON_PATH=%%b
+)
+
+:: Read proxy test setting from YAML config file (simple check)
+findstr /C:"test_on_startup: true" "%CONFIG_FILE%" >nul 2>&1
+if %errorlevel% equ 0 (
+    set PROXY_TEST_ENABLED=true
+) else (
+    set PROXY_TEST_ENABLED=false
 )
 
 :: Clean quotes and spaces from Python path
@@ -40,48 +50,37 @@ if not exist "%PYTHON_PATH%" (
 
 echo [OK] Python interpreter check passed
 
-:: Test proxy connection
+:: Check if proxy test is enabled
+if "%PROXY_TEST_ENABLED%"=="true" goto :test_proxy
+echo [SKIP] Proxy test disabled (test_on_startup: false)
+goto :start_app
+
+:test_proxy
 echo [INFO] Testing proxy connection (port 7890)...
 
-:: Use PowerShell to test proxy connection to Google
-powershell -Command "try { $response = Invoke-WebRequest -Uri 'https://www.google.com' -Proxy 'http://127.0.0.1:7890' -TimeoutSec 10 -UseBasicParsing; exit 0 } catch { exit 1 }" >nul 2>&1
+:: Use faster curl command with shorter timeout
+curl -s --proxy http://127.0.0.1:7890 --connect-timeout 2 --max-time 3 https://httpbin.org/ip >nul 2>&1
 
 if %errorlevel% equ 0 (
     echo [OK] Proxy connection test successful - port 7890 available
-    echo.
-    echo [INFO] Starting YouTube downloader...
-    echo.
-
-    :: Start Python program
-    "%PYTHON_PATH%" youtube_downloader.py
-
-    if %errorlevel% neq 0 (
-        echo.
-        echo [ERROR] YouTube downloader failed to run
-        pause
-    )
 ) else (
-    echo [FAIL] Proxy connection test failed
+    echo [WARN] Proxy connection test failed - continuing anyway
+    echo [HINT] You can enable/disable proxy testing in config: test_on_startup
+)
+
+:start_app
+
+echo.
+echo [INFO] Starting YouTube downloader...
+echo.
+
+:: Start Python program
+"%PYTHON_PATH%" youtube_downloader.py
+
+if %errorlevel% neq 0 (
     echo.
-    echo ========================================
-    echo           Proxy Setup Instructions
-    echo ========================================
-    echo Please ensure the following conditions are met:
-    echo 1. Clash or other proxy software is running
-    echo 2. Proxy software listens on 127.0.0.1:7890
-    echo 3. Proxy software allows LAN connections
-    echo 4. Proxy can access foreign websites normally
-    echo.
-    echo Common solutions:
-    echo - Start Clash and ensure port is set to 7890
-    echo - Check if firewall blocks proxy software
-    echo - Try restarting proxy software
-    echo.
-    echo If proxy is not needed, set proxy.enabled to false in config
-    echo ========================================
-    echo.
+    echo [ERROR] YouTube downloader failed to run
     pause
-    exit /b 1
 )
 
 echo.

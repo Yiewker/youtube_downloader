@@ -15,8 +15,9 @@ download:
   max_workers: 2
   proxy:
     enabled: true
+    test_on_startup: false  # 启动时是否测试代理连接（默认关闭以提高启动速度）
     test_url: https://www.google.com
-    timeout: 10
+    timeout: 3  # 减少超时时间以提高测试速度
     url: http://127.0.0.1:7890
   save_path: J:\Users\ccd\Downloads\
 python_path: J:\app\Python\Python310\python.exe

@@ -28,7 +28,7 @@ jobs:
 
           ### 📦 下载选择
           - **Windows独立exe**: `YouTube_Downloader_${{ github.ref_name }}.exe`
-          - **macOS独立应用**: `YouTube_Downloader_${{ github.ref_name }}_macos`
+          - **macOS独立应用**: `YouTube_Downloader_${{ github.ref_name }}_macos.app`
           - **配置模板**: `youtube_downloader_config.yaml`
 
           ### ✨ 主要功能
@@ -46,9 +46,9 @@ jobs:
           2. 双击运行
 
           **macOS用户:**
-          1. 下载 `YouTube_Downloader_${{ github.ref_name }}_macos`
-          2. 在终端中运行: `chmod +x YouTube_Downloader_${{ github.ref_name }}_macos`
-          3. 双击运行或终端执行: `./YouTube_Downloader_${{ github.ref_name }}_macos`
+          1. 下载 `YouTube_Downloader_${{ github.ref_name }}_macos.app`
+          2. 在终端中运行: `chmod +x YouTube_Downloader_${{ github.ref_name }}_macos.app`
+          3. 双击运行或终端执行: `./YouTube_Downloader_${{ github.ref_name }}_macos.app`
 
           ### 📝 更新内容
           详见commit历史和README文档。
@@ -68,8 +68,8 @@ jobs:
             build_args: --onefile --windowed
           - os: macos-latest
             platform: macos
-            executable_name: YouTube_Downloader_${{ github.ref_name }}_macos
-            asset_name: YouTube_Downloader_${{ github.ref_name }}_macos
+            executable_name: YouTube_Downloader_${{ github.ref_name }}_macos.app
+            asset_name: YouTube_Downloader_${{ github.ref_name }}_macos.app
             build_args: --onefile --windowed
 
     runs-on: ${{ matrix.os }}

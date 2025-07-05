@@ -1,6 +1,6 @@
-# YouTube 批量下载器 v2.1
+# YouTube 批量下载器 v2.2
 
-简化版YouTube批量下载器，集成了反检测、智能重试和代理支持功能。新增直接输入链接和低画质优先下载功能。
+简化版YouTube批量下载器，集成了反检测、智能重试和代理支持功能。支持Windows和macOS跨平台使用。
 
 ## 项目结构
 
@@ -19,15 +19,38 @@ youtube_downloader/
 └── README.md                       # 说明文档
 ```
 
-## 快速开始
+## 🚀 快速开始
 
-### 方法一：使用独立exe文件（推荐）
-1. 下载 `YouTube_Downloader_v2.1.exe`（约30MB）
-2. 双击运行，无需安装Python环境
-3. 首次运行会在exe同目录生成配置文件
+### Windows用户
+1. 从 [Releases页面](https://github.com/Yiewker/youtube_downloader/releases) 下载 `YouTube_Downloader_vX.X.X.exe`
+2. 双击运行即可，无需安装Python环境
 
-### 方法二：使用启动脚本
-直接双击 `youtube_downloader.bat` 即可启动程序。
+### macOS用户
+
+#### 方法1：使用.app版本（推荐）
+1. 下载 `YouTube_Downloader_vX.X.X_macos.app`
+2. 在终端中运行：`chmod +x YouTube_Downloader_vX.X.X_macos.app`
+3. 双击运行
+
+#### 方法2：如果双击不工作
+```bash
+# 下载后在终端中执行
+chmod +x YouTube_Downloader_vX.X.X_macos.app
+./YouTube_Downloader_vX.X.X_macos.app
+```
+
+#### 方法3：右键菜单
+1. 右键点击下载的文件
+2. 选择"打开方式" → "终端"
+3. 或选择"打开方式" → "其他" → 选择"终端"
+
+#### 方法4：设置默认程序
+1. 右键点击文件 → "显示简介"
+2. 在"打开方式"部分选择"终端"
+3. 点击"全部更改"
+
+### 传统方式：使用启动脚本
+直接双击 `youtube_downloader.bat` 即可启动程序（仅Windows）。
 
 ### 2. 下载方式（两种选择）
 
@@ -131,7 +154,29 @@ download:
     test_on_startup: false  # 启动时是否测试代理（默认关闭以提高启动速度）
 ```
 
-## 故障排除
+## 🐛 故障排除
+
+### macOS "无法打开" 错误
+如果遇到 "无法打开，因为它来自身份不明的开发者" 错误：
+
+1. **方法1**：按住 Control 键点击文件，选择"打开"
+2. **方法2**：在"系统偏好设置" → "安全性与隐私" → "通用" 中点击"仍要打开"
+3. **方法3**：在终端中运行：
+   ```bash
+   xattr -d com.apple.quarantine YouTube_Downloader_vX.X.X_macos.app
+   ```
+
+### macOS "未设定用来打开的程序" 错误
+1. **右键点击文件** → "打开方式" → "终端"
+2. **或者在终端中运行**：
+   ```bash
+   chmod +x YouTube_Downloader_vX.X.X_macos.app
+   ./YouTube_Downloader_vX.X.X_macos.app
+   ```
+
+### Windows "Windows已保护你的电脑" 错误
+1. 点击"更多信息"
+2. 点击"仍要运行"
 
 ### 代理连接失败
 - 检查Clash是否启动

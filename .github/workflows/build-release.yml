@@ -111,7 +111,9 @@ jobs:
     - name: Build executable (macOS)
       if: matrix.platform == 'macos'
       run: |
-        pyinstaller ${{ matrix.build_args }} --name="${{ matrix.executable_name }}" --add-data="yt-dlp:." --add-data="youtube_downloader_config.yaml:." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
+        pyinstaller ${{ matrix.build_args }} --name="YouTube_Downloader_${{ github.ref_name }}_macos" --add-data="yt-dlp:." --add-data="youtube_downloader_config.yaml:." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
+        # 重命名文件添加.app扩展名
+        mv "dist/YouTube_Downloader_${{ github.ref_name }}_macos" "dist/YouTube_Downloader_${{ github.ref_name }}_macos.app"
         
     - name: Get file info (Windows)
       if: matrix.platform == 'windows'
@@ -127,11 +129,23 @@ jobs:
       if: matrix.platform == 'macos'
       id: file_info_macos
       run: |
+        # 调试：列出dist目录内容
+        echo "Contents of dist directory:"
+        ls -la dist/
+
         file_path="dist/${{ matrix.executable_name }}"
-        file_size=$(stat -f%z "$file_path")
-        file_size_mb=$(echo "scale=1; $file_size / 1048576" | bc)
-        echo "file_size_mb=$file_size_mb" >> $GITHUB_OUTPUT
-        echo "file_path=$file_path" >> $GITHUB_OUTPUT
+        echo "Looking for file: $file_path"
+
+        if [ -f "$file_path" ]; then
+          file_size=$(stat -f%z "$file_path")
+          file_size_mb=$(echo "scale=1; $file_size / 1048576" | bc)
+          echo "file_size_mb=$file_size_mb" >> $GITHUB_OUTPUT
+          echo "file_path=$file_path" >> $GITHUB_OUTPUT
+          echo "File found and info recorded"
+        else
+          echo "File not found: $file_path"
+          exit 1
+        fi
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1

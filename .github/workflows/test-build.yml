@@ -1,0 +1,47 @@
+name: Test Build (Manual)
+
+on:
+  workflow_dispatch:  # 只允许手动触发
+    inputs:
+      version_name:
+        description: 'Version name for the build (e.g., test-v2.1)'
+        required: true
+        default: 'test-build'
+
+jobs:
+  test-build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install pyyaml tkinterdnd2 requests
+        
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --windowed --name="YouTube_Downloader_${{ github.event.inputs.version_name }}" --add-data="yt-dlp.exe;." --add-data="youtube_downloader_config.yaml;." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
+        
+    - name: Get file info
+      run: |
+        $file_path = "dist/YouTube_Downloader_${{ github.event.inputs.version_name }}.exe"
+        $file_size = (Get-Item $file_path).Length
+        $file_size_mb = [math]::Round($file_size / 1MB, 1)
+        echo "Built file: $file_path"
+        echo "File size: $file_size_mb MB"
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: YouTube_Downloader_${{ github.event.inputs.version_name }}
+        path: dist/YouTube_Downloader_${{ github.event.inputs.version_name }}.exe
+        retention-days: 7

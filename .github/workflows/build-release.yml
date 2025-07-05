@@ -1,0 +1,94 @@
+name: Build and Release YouTube Downloader
+
+on:
+  push:
+    tags:
+      - 'v*'  # 当推送v开头的tag时触发，如v2.1, v2.2等
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install pyyaml tkinterdnd2 requests
+        
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --windowed --name="YouTube_Downloader_${{ github.ref_name }}" --add-data="yt-dlp.exe;." --add-data="youtube_downloader_config.yaml;." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
+        
+    - name: Get file info
+      id: file_info
+      run: |
+        $file_path = "dist/YouTube_Downloader_${{ github.ref_name }}.exe"
+        $file_size = (Get-Item $file_path).Length
+        $file_size_mb = [math]::Round($file_size / 1MB, 1)
+        echo "file_size_mb=$file_size_mb" >> $env:GITHUB_OUTPUT
+        echo "file_path=$file_path" >> $env:GITHUB_OUTPUT
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: YouTube Downloader ${{ github.ref_name }}
+        body: |
+          ## 🎉 YouTube Downloader ${{ github.ref_name }}
+          
+          ### 📦 下载
+          - **Windows独立exe**: `YouTube_Downloader_${{ github.ref_name }}.exe` (~${{ steps.file_info.outputs.file_size_mb }}MB)
+          - 无需安装Python环境，双击即可运行
+          - 首次运行会在exe同目录生成配置文件
+          
+          ### ✨ 主要功能
+          - 🎯 **直接输入链接**：无需创建txt文件
+          - 📱 **低画质选项**：节省流量和时间
+          - ⚡ **秒开启动**：代理测试默认关闭
+          - 🔧 **智能重试**：自动处理下载失败
+          - 🎨 **友好界面**：拖拽文件、实时进度显示
+          
+          ### 🚀 使用方法
+          1. 下载exe文件
+          2. 双击运行
+          3. 输入YouTube链接或选择txt文件
+          4. 点击开始下载
+          
+          ### 📝 更新内容
+          详见commit历史和README文档。
+          
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.file_info.outputs.file_path }}
+        asset_name: YouTube_Downloader_${{ github.ref_name }}.exe
+        asset_content_type: application/octet-stream
+        
+    - name: Upload config template
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: youtube_downloader_config.yaml
+        asset_name: youtube_downloader_config.yaml
+        asset_content_type: text/yaml

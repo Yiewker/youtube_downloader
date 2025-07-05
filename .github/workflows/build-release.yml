@@ -10,37 +10,11 @@ permissions:
   contents: write  # 允许创建release和上传文件
 
 jobs:
-  build:
-    runs-on: windows-latest
-    
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller
-        pip install pyyaml tkinterdnd2 requests
-        
-    - name: Build executable
-      run: |
-        pyinstaller --onefile --windowed --name="YouTube_Downloader_${{ github.ref_name }}" --add-data="yt-dlp.exe;." --add-data="youtube_downloader_config.yaml;." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
-        
-    - name: Get file info
-      id: file_info
-      run: |
-        $file_path = "dist/YouTube_Downloader_${{ github.ref_name }}.exe"
-        $file_size = (Get-Item $file_path).Length
-        $file_size_mb = [math]::Round($file_size / 1MB, 1)
-        echo "file_size_mb=$file_size_mb" >> $env:GITHUB_OUTPUT
-        echo "file_path=$file_path" >> $env:GITHUB_OUTPUT
-        
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -51,47 +25,137 @@ jobs:
         release_name: YouTube Downloader ${{ github.ref_name }}
         body: |
           ## 🎉 YouTube Downloader ${{ github.ref_name }}
-          
-          ### 📦 下载
-          - **Windows独立exe**: `YouTube_Downloader_${{ github.ref_name }}.exe` (~${{ steps.file_info.outputs.file_size_mb }}MB)
-          - 无需安装Python环境，双击即可运行
-          - 首次运行会在exe同目录生成配置文件
-          
+
+          ### 📦 下载选择
+          - **Windows独立exe**: `YouTube_Downloader_${{ github.ref_name }}.exe`
+          - **macOS独立应用**: `YouTube_Downloader_${{ github.ref_name }}_macos`
+          - **配置模板**: `youtube_downloader_config.yaml`
+
           ### ✨ 主要功能
           - 🎯 **直接输入链接**：无需创建txt文件
           - 📱 **低画质选项**：节省流量和时间
           - ⚡ **秒开启动**：代理测试默认关闭
           - 🔧 **智能重试**：自动处理下载失败
           - 🎨 **友好界面**：拖拽文件、实时进度显示
-          
+          - 🌍 **跨平台支持**：Windows和macOS原生应用
+
           ### 🚀 使用方法
-          1. 下载exe文件
+
+          **Windows用户:**
+          1. 下载 `YouTube_Downloader_${{ github.ref_name }}.exe`
           2. 双击运行
-          3. 输入YouTube链接或选择txt文件
-          4. 点击开始下载
-          
+
+          **macOS用户:**
+          1. 下载 `YouTube_Downloader_${{ github.ref_name }}_macos`
+          2. 在终端中运行: `chmod +x YouTube_Downloader_${{ github.ref_name }}_macos`
+          3. 双击运行或终端执行: `./YouTube_Downloader_${{ github.ref_name }}_macos`
+
           ### 📝 更新内容
           详见commit历史和README文档。
-          
+
         draft: false
         prerelease: false
+
+  build:
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            executable_name: YouTube_Downloader_${{ github.ref_name }}.exe
+            asset_name: YouTube_Downloader_${{ github.ref_name }}.exe
+            build_args: --onefile --windowed
+          - os: macos-latest
+            platform: macos
+            executable_name: YouTube_Downloader_${{ github.ref_name }}_macos
+            asset_name: YouTube_Downloader_${{ github.ref_name }}_macos
+            build_args: --onefile --windowed
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies (Windows)
+      if: matrix.platform == 'windows'
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install pyyaml tkinterdnd2 requests
+
+    - name: Install dependencies (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install pyyaml tkinterdnd2 requests
+
+    - name: Download yt-dlp for macOS
+      if: matrix.platform == 'macos'
+      run: |
+        curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos -o yt-dlp
+        chmod +x yt-dlp
+
+    - name: Build executable (Windows)
+      if: matrix.platform == 'windows'
+      run: |
+        pyinstaller ${{ matrix.build_args }} --name="${{ matrix.executable_name }}" --add-data="yt-dlp.exe;." --add-data="youtube_downloader_config.yaml;." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
+
+    - name: Build executable (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        pyinstaller ${{ matrix.build_args }} --name="${{ matrix.executable_name }}" --add-data="yt-dlp:." --add-data="youtube_downloader_config.yaml:." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
         
+    - name: Get file info (Windows)
+      if: matrix.platform == 'windows'
+      id: file_info_windows
+      run: |
+        $file_path = "dist/${{ matrix.executable_name }}"
+        $file_size = (Get-Item $file_path).Length
+        $file_size_mb = [math]::Round($file_size / 1MB, 1)
+        echo "file_size_mb=$file_size_mb" >> $env:GITHUB_OUTPUT
+        echo "file_path=$file_path" >> $env:GITHUB_OUTPUT
+
+    - name: Get file info (macOS)
+      if: matrix.platform == 'macos'
+      id: file_info_macos
+      run: |
+        file_path="dist/${{ matrix.executable_name }}"
+        file_size=$(stat -f%z "$file_path")
+        file_size_mb=$(echo "scale=1; $file_size / 1048576" | bc)
+        echo "file_size_mb=$file_size_mb" >> $GITHUB_OUTPUT
+        echo "file_path=$file_path" >> $GITHUB_OUTPUT
+
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.file_info.outputs.file_path }}
-        asset_name: YouTube_Downloader_${{ github.ref_name }}.exe
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: dist/${{ matrix.executable_name }}
+        asset_name: ${{ matrix.asset_name }}
         asset_content_type: application/octet-stream
         
+  upload-config:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Upload config template
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
         asset_path: youtube_downloader_config.yaml
         asset_name: youtube_downloader_config.yaml
         asset_content_type: text/yaml

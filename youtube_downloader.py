@@ -31,6 +31,14 @@ def get_resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+def get_ytdlp_executable():
+    """获取yt-dlp可执行文件路径（跨平台支持）"""
+    if sys.platform.startswith('win'):
+        return get_resource_path('yt-dlp.exe')
+    else:
+        # macOS和Linux使用yt-dlp（无扩展名）
+        return get_resource_path('yt-dlp')
+
 def get_config_path():
     """获取配置文件路径（exe同目录下）"""
     if getattr(sys, 'frozen', False):
@@ -43,7 +51,7 @@ def get_config_path():
 # 配置文件名称和路径
 CONFIG_FILE = get_config_path()
 current_directory = os.path.dirname(os.path.abspath(__file__))
-yt_dlp_path = get_resource_path('yt-dlp.exe')
+yt_dlp_path = get_ytdlp_executable()
 
 class YouTubeDownloader:
     def __init__(self):

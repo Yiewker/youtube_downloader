@@ -6,6 +6,9 @@ on:
       - 'v*'  # 当推送v开头的tag时触发，如v2.1, v2.2等
   workflow_dispatch:  # 允许手动触发
 
+permissions:
+  contents: write  # 允许创建release和上传文件
+
 jobs:
   build:
     runs-on: windows-latest

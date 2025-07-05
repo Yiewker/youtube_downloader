@@ -21,10 +21,29 @@ import random
 import uuid
 import requests
 
-# 配置文件名称
-CONFIG_FILE = 'youtube_downloader_config.yaml'
+def get_resource_path(relative_path):
+    """获取资源文件路径（支持打包后的exe）"""
+    try:
+        # PyInstaller打包后的临时目录
+        base_path = sys._MEIPASS
+    except Exception:
+        # 开发环境下的当前目录
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+def get_config_path():
+    """获取配置文件路径（exe同目录下）"""
+    if getattr(sys, 'frozen', False):
+        # 打包后的exe文件目录
+        return os.path.join(os.path.dirname(sys.executable), 'youtube_downloader_config.yaml')
+    else:
+        # 开发环境
+        return 'youtube_downloader_config.yaml'
+
+# 配置文件名称和路径
+CONFIG_FILE = get_config_path()
 current_directory = os.path.dirname(os.path.abspath(__file__))
-yt_dlp_path = os.path.join(current_directory, 'yt-dlp.exe')
+yt_dlp_path = get_resource_path('yt-dlp.exe')
 
 class YouTubeDownloader:
     def __init__(self):
@@ -46,9 +65,64 @@ class YouTubeDownloader:
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as file:
                 return yaml.safe_load(file)
+        except FileNotFoundError:
+            # 配置文件不存在，创建默认配置
+            default_config = self.create_default_config()
+            self.save_default_config(default_config)
+            return default_config
         except Exception as e:
             messagebox.showerror("配置错误", f"无法加载配置文件: {e}")
             sys.exit(1)
+
+    def create_default_config(self):
+        """创建默认配置"""
+        return {
+            'behavior': {
+                'download_interval': 2,
+                'ignore_errors': True,
+                'max_retries': 3,
+                'random_delay_range': [1, 3],
+                'retry_delay': 5,
+                'unique_filename': True
+            },
+            'debug': {
+                'enabled': False,
+                'save_logs': False,
+                'show_formats': False
+            },
+            'download': {
+                'max_workers': 2,
+                'proxy': {
+                    'enabled': True,
+                    'test_on_startup': False,
+                    'test_url': 'https://www.google.com',
+                    'timeout': 3,
+                    'url': 'http://127.0.0.1:7890'
+                },
+                'save_path': os.path.join(os.path.expanduser('~'), 'Downloads')
+            },
+            'python_path': sys.executable,
+            'video': {
+                'format_priority': [
+                    'bestvideo[height=1080][fps=60]+bestaudio/best',
+                    'bestvideo[height=720][fps=60]+bestaudio/best',
+                    'bestvideo[height=1080][fps=30]+bestaudio/best',
+                    'bestvideo[height=720][fps=30]+bestaudio/best',
+                    'bestvideo[height=480]+bestaudio/best',
+                    'bestvideo[height=360]+bestaudio/best'
+                ],
+                'max_height': 1080,
+                'output_format': 'mp4'
+            }
+        }
+
+    def save_default_config(self, config):
+        """保存默认配置到文件"""
+        try:
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as file:
+                yaml.dump(config, file, default_flow_style=False, allow_unicode=True)
+        except Exception as e:
+            print(f"无法保存默认配置: {e}")
     
     def save_config(self):
         """保存配置文件"""

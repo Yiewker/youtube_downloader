@@ -10,21 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-            executable_name: YouTube_Downloader_${{ github.ref_name }}.exe
-            build_args: --onefile --windowed
-          - os: macos-latest
-            platform: macos
-            executable_name: YouTube_Downloader_${{ github.ref_name }}_macos.app
-            build_args: --onefile --windowed
-
-    runs-on: ${{ matrix.os }}
-
+  build-windows:
+    runs-on: windows-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -34,45 +21,86 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install dependencies (Windows)
-      if: matrix.platform == 'windows'
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller pyyaml tkinterdnd2 requests
-
-    - name: Install dependencies (macOS)
-      if: matrix.platform == 'macos'
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller pyyaml tkinterdnd2 requests
 
     - name: Download yt-dlp for Windows
-      if: matrix.platform == 'windows'
       run: |
         curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe -o yt-dlp.exe
 
+    - name: Build Windows executable
+      run: |
+        pyinstaller --onefile --windowed --name="YouTube_Downloader_${{ github.ref_name }}" --add-data="yt-dlp.exe;." --add-data="youtube_downloader_config.yaml;." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
+        mv "dist/YouTube_Downloader_${{ github.ref_name }}.exe" "dist/YouTube_Downloader_${{ github.ref_name }}.exe"
+
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-executable
+        path: dist/YouTube_Downloader_${{ github.ref_name }}.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller pyyaml tkinterdnd2 requests
+
     - name: Download yt-dlp for macOS
-      if: matrix.platform == 'macos'
       run: |
         curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos -o yt-dlp
         chmod +x yt-dlp
 
-    - name: Build executable (Windows)
-      if: matrix.platform == 'windows'
+    - name: Build macOS executable
       run: |
-        pyinstaller ${{ matrix.build_args }} --name="${{ matrix.executable_name }}" --add-data="yt-dlp.exe;." --add-data="youtube_downloader_config.yaml;." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
-
-    - name: Build executable (macOS)
-      if: matrix.platform == 'macos'
-      run: |
-        pyinstaller ${{ matrix.build_args }} --name="YouTube_Downloader_${{ github.ref_name }}_macos" --add-data="yt-dlp:." --add-data="youtube_downloader_config.yaml:." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
+        pyinstaller --onefile --windowed --name="YouTube_Downloader_${{ github.ref_name }}_macos" --add-data="yt-dlp:." --add-data="youtube_downloader_config.yaml:." --hidden-import="yaml" --hidden-import="tkinterdnd2" --hidden-import="requests" --exclude-module="matplotlib" --exclude-module="numpy" --exclude-module="scipy" --exclude-module="pandas" youtube_downloader.py
         mv "dist/YouTube_Downloader_${{ github.ref_name }}_macos" "dist/YouTube_Downloader_${{ github.ref_name }}_macos.app"
 
-    - name: Debug file info (macOS)
-      if: matrix.platform == 'macos'
+    - name: Debug macOS build
       run: |
         echo "Contents of dist directory:"
         ls -la dist/
+
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-executable
+        path: dist/YouTube_Downloader_${{ github.ref_name }}_macos.app
+
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-executable
+        path: ./artifacts/
+
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-executable
+        path: ./artifacts/
+
+    - name: List downloaded artifacts
+      run: |
+        echo "Downloaded artifacts:"
+        ls -la ./artifacts/
 
     - name: Create Release and Upload Assets
       uses: softprops/action-gh-release@v1
@@ -109,7 +137,8 @@ jobs:
           ### 📝 更新内容
           详见commit历史和README文档。
         files: |
-          dist/${{ matrix.executable_name }}
+          ./artifacts/YouTube_Downloader_${{ github.ref_name }}.exe
+          ./artifacts/YouTube_Downloader_${{ github.ref_name }}_macos.app
           youtube_downloader_config.yaml
         draft: false
         prerelease: false

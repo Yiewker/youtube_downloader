@@ -6,19 +6,27 @@
 
 ```
 youtube_downloader/
+├── YouTube_Downloader_v2.1.exe     # 独立可执行文件（推荐使用）
 ├── youtube_downloader.bat          # 启动脚本（自动检测代理和Python环境）
 ├── youtube_downloader.py           # 主程序（基于yt_dlp_gui5.py改进）
 ├── youtube_downloader_config.yaml  # 配置文件
+├── youtube_downloader.spec         # PyInstaller打包配置
 ├── requirements.txt                # Python依赖
 ├── yt-dlp.exe                      # YouTube下载器
 ├── test_urls.txt                   # 测试链接文件
+├── dist/                           # 打包输出目录
 ├── his/v1/                         # 历史版本文件夹
 └── README.md                       # 说明文档
 ```
 
 ## 快速开始
 
-### 1. 双击运行
+### 方法一：使用独立exe文件（推荐）
+1. 下载 `YouTube_Downloader_v2.1.exe`（约30MB）
+2. 双击运行，无需安装Python环境
+3. 首次运行会在exe同目录生成配置文件
+
+### 方法二：使用启动脚本
 直接双击 `youtube_downloader.bat` 即可启动程序。
 
 ### 2. 下载方式（两种选择）
@@ -43,6 +51,12 @@ https://www.youtube.com/watch?v=oHg5SJYRHA0
 - 勾选"优先下载最低画质"可节省流量和时间
 
 ## 功能特点
+
+### 📦 独立可执行文件
+- 🎯 **完全便携**：单个exe文件，约30MB，无需安装Python环境
+- ⚡ **即开即用**：双击运行，自动生成配置文件
+- 🔧 **自包含**：内置所有依赖库和yt-dlp下载器
+- 💾 **配置持久化**：exe同目录下保存用户设置
 
 ### 🚀 智能启动检测
 - 自动检测Python环境（配置在yaml中）
@@ -140,11 +154,13 @@ download:
 ### v2.1 (当前版本)
 - 🆕 **新增直接输入链接功能**：无需创建txt文件，直接在界面输入链接
 - 🆕 **新增低画质优先选项**：可选择优先下载最低画质节省流量
+- 📦 **独立exe文件**：使用PyInstaller打包，完全便携，无需Python环境
 - ⚡ **启动速度优化**：代理测试默认关闭，启动速度提升至秒开
 - 🎨 **界面优化**：调整窗口大小，添加占位符提示，改进布局
 - 🔧 **智能链接识别**：支持多种YouTube链接格式自动识别
 - 📝 **多输入方式**：支持换行和空格分隔的多链接输入
 - ⚙️ **可配置代理测试**：可在配置文件中控制是否启动时测试代理
+- 💾 **配置自动生成**：首次运行自动创建默认配置文件
 
 ### v2.0
 - 重构项目结构，化繁为简

@@ -37,6 +37,8 @@ class YouTubeDownloader:
         self.max_workers_entry = None
         self.proxy_var = None
         self.debug_var = None
+        self.low_quality_var = None
+        self.url_text = None
         
     def load_config(self):
         """加载配置文件"""
@@ -99,52 +101,65 @@ class YouTubeDownloader:
         except Exception:
             return False
     
-    def get_best_format(self, link):
+    def get_best_format(self, link, prefer_low_quality=False):
         """获取最佳可用格式"""
         try:
             command = [yt_dlp_path, '-F', link]
             if self.config['download']['proxy']['enabled']:
                 command.extend(['--proxy', self.config['download']['proxy']['url']])
-            
+
             result = subprocess.run(command, capture_output=True, text=True, timeout=30)
             formats_output = result.stdout
-            
+
             if self.config['debug']['enabled']:
                 print(f"可用格式: {formats_output}")
-            
-            # 按优先级选择格式
+
+            # 如果优先下载最低画质
+            if prefer_low_quality:
+                low_quality_formats = [
+                    "worst[height<=360]+bestaudio/worst",
+                    "worst[height<=480]+bestaudio/worst",
+                    "worst[height<=720]+bestaudio/worst",
+                    "worst"
+                ]
+                for format_str in low_quality_formats:
+                    if any(keyword in formats_output for keyword in format_str.split('+')):
+                        return format_str
+                return "worst"
+
+            # 按优先级选择格式（高画质优先）
             for format_str in self.config['video']['format_priority']:
                 if any(keyword in formats_output for keyword in format_str.split('+')):
                     return format_str
-            
+
             # 如果没有找到理想格式，使用备用格式
             return "best[height<=1080]"
-            
+
         except Exception as e:
             print(f"获取格式失败: {e}")
-            return "best[height<=720]"  # 最保险的格式
+            return "worst" if prefer_low_quality else "best[height<=720]"
     
-    def download_video(self, link, save_path):
+    def download_video(self, link, save_path, prefer_low_quality=False):
         """下载单个视频"""
         max_retries = self.config['behavior']['max_retries']
         retry_delay = self.config['behavior']['retry_delay']
-        
+
         # 生成唯一文件名
         if self.config['behavior']['unique_filename']:
             short_uuid = uuid.uuid4().hex[:8]
             filename_template = f"%(title)s_{short_uuid}.%(ext)s"
         else:
             filename_template = "%(title)s.%(ext)s"
-        
+
         for attempt in range(max_retries):
             try:
                 if attempt > 0:
                     delay = retry_delay * attempt + random.uniform(1, 3)
                     time.sleep(delay)
                     print(f"重试下载 {link} (第 {attempt + 1} 次)")
-                
+
                 # 获取最佳格式
-                format_str = self.get_best_format(link)
+                format_str = self.get_best_format(link, prefer_low_quality)
                 
                 # 构建下载命令
                 command = [
@@ -186,21 +201,22 @@ class YouTubeDownloader:
         
         return -1  # 所有重试都失败
     
-    def download_videos(self, file_path):
+    def download_videos(self, file_path, links_list=None):
         """批量下载视频"""
         save_path = self.save_path_entry.get()
         max_workers = int(self.max_workers_entry.get())
-        
-        if not file_path:
-            self.update_status("请先选择一个文件")
+        prefer_low_quality = self.low_quality_var.get() if self.low_quality_var else False
+
+        if not file_path and not links_list:
+            self.update_status("请先选择一个文件或输入链接")
             return
-        
+
         if not self.validate_save_path(save_path):
             return
-        
+
         # 保存配置
         self.save_config()
-        
+
         # 测试代理连接
         if self.config['download']['proxy']['enabled']:
             self.update_status("正在测试代理连接...")
@@ -208,40 +224,44 @@ class YouTubeDownloader:
                 self.update_status("代理连接失败，请检查代理设置")
                 messagebox.showerror("代理错误", "无法连接到代理服务器，请检查Clash是否启动并开放7890端口")
                 return
-        
+
         # 读取链接
-        try:
-            with open(file_path, 'r', encoding='utf-8') as file:
-                links = [line.strip() for line in file if line.strip()]
-        except Exception as e:
-            self.update_status(f"读取文件失败: {e}")
-            return
-        
+        if links_list:
+            links = links_list
+        else:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    links = [line.strip() for line in file if line.strip()]
+            except Exception as e:
+                self.update_status(f"读取文件失败: {e}")
+                return
+
         if not links:
-            self.update_status("文件中没有找到有效链接")
+            self.update_status("没有找到有效链接")
             return
-        
+
         total_count = len(links)
         completed_count = 0
         failed_links = []
-        
-        self.update_status(f"开始下载 {total_count} 个视频...")
+
+        quality_text = "最低画质" if prefer_low_quality else "最佳画质"
+        self.update_status(f"开始下载 {total_count} 个视频 ({quality_text})...")
         self.update_progress(0, total_count)
-        
+
         # 限制并发数以避免被检测
         actual_workers = min(max_workers, 2)
-        
+
         with ThreadPoolExecutor(max_workers=actual_workers) as executor:
             futures = {}
-            
+
             for i, link in enumerate(links):
                 # 添加随机延迟
                 if i > 0:
                     delay_range = self.config['behavior']['random_delay_range']
                     delay = random.uniform(delay_range[0], delay_range[1])
                     time.sleep(delay)
-                
-                future = executor.submit(self.download_video, link, save_path)
+
+                future = executor.submit(self.download_video, link, save_path, prefer_low_quality)
                 futures[future] = link
             
             for future in as_completed(futures):
@@ -289,6 +309,37 @@ class YouTubeDownloader:
         if file_path:
             self.update_status("开始下载...")
             threading.Thread(target=self.download_videos, args=(file_path,), daemon=True).start()
+
+    def download_from_text(self):
+        """从文本框下载链接"""
+        url_text = self.url_text.get("1.0", tk.END).strip()
+
+        # 检查是否为占位符文本
+        placeholder_text = "在此输入YouTube链接，例如:\nhttps://www.youtube.com/watch?v=example1\nhttps://youtu.be/example2"
+        if not url_text or url_text == placeholder_text:
+            self.update_status("请输入YouTube链接")
+            messagebox.showwarning("输入错误", "请在文本框中输入YouTube链接")
+            return
+
+        # 解析链接（支持换行和空格分隔）
+        import re
+        # 匹配YouTube链接的正则表达式
+        youtube_pattern = r'https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[a-zA-Z0-9_-]+'
+        links = re.findall(youtube_pattern, url_text)
+
+        if not links:
+            # 如果没有找到标准YouTube链接，尝试按行分割
+            lines = [line.strip() for line in url_text.split('\n') if line.strip()]
+            # 过滤出可能的链接
+            links = [line for line in lines if 'youtube.com' in line or 'youtu.be' in line]
+
+        if not links:
+            self.update_status("未找到有效的YouTube链接")
+            messagebox.showerror("链接错误", "未找到有效的YouTube链接，请检查输入格式")
+            return
+
+        self.update_status(f"找到 {len(links)} 个链接，开始下载...")
+        threading.Thread(target=self.download_videos, args=(None, links), daemon=True).start()
     
     def update_ytdlp(self):
         """更新yt-dlp"""
@@ -333,7 +384,7 @@ class YouTubeDownloader:
         """创建GUI界面"""
         self.root = TkinterDnD.Tk()
         self.root.title("YouTube 批量下载器 v2.0")
-        self.root.geometry("600x500")
+        self.root.geometry("650x700")
 
         # 设置图标（如果存在）
         try:
@@ -387,6 +438,12 @@ class YouTubeDownloader:
         debug_check.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=5)
         row += 1
 
+        # 优先下载最低画质
+        self.low_quality_var = tk.BooleanVar(value=False)
+        low_quality_check = ttk.Checkbutton(main_frame, text="优先下载最低画质", variable=self.low_quality_var)
+        low_quality_check.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=5)
+        row += 1
+
         # 分隔线
         separator = ttk.Separator(main_frame, orient='horizontal')
         separator.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
@@ -416,6 +473,60 @@ class YouTubeDownloader:
         drop_label.grid(row=row, column=0, columnspan=3, pady=10)
         row += 1
 
+        # 第二个分隔线
+        separator2 = ttk.Separator(main_frame, orient='horizontal')
+        separator2.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        row += 1
+
+        # 直接输入链接区域
+        ttk.Label(main_frame, text="或直接输入YouTube链接:", font=("Arial", 10, "bold")).grid(row=row, column=0, columnspan=3, sticky=tk.W, pady=(10, 5))
+        row += 1
+
+        # 链接输入文本框
+        url_frame = ttk.Frame(main_frame)
+        url_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        url_frame.columnconfigure(0, weight=1)
+
+        self.url_text = tk.Text(url_frame, height=4, wrap=tk.WORD, font=("Arial", 9))
+        self.url_text.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
+
+        # 添加占位符文本
+        placeholder_text = "在此输入YouTube链接，例如:\nhttps://www.youtube.com/watch?v=example1\nhttps://youtu.be/example2"
+        self.url_text.insert("1.0", placeholder_text)
+        self.url_text.config(foreground="gray")
+
+        # 绑定焦点事件来处理占位符
+        def on_focus_in(event):
+            if self.url_text.get("1.0", tk.END).strip() == placeholder_text:
+                self.url_text.delete("1.0", tk.END)
+                self.url_text.config(foreground="black")
+
+        def on_focus_out(event):
+            if not self.url_text.get("1.0", tk.END).strip():
+                self.url_text.insert("1.0", placeholder_text)
+                self.url_text.config(foreground="gray")
+
+        self.url_text.bind("<FocusIn>", on_focus_in)
+        self.url_text.bind("<FocusOut>", on_focus_out)
+
+        # 滚动条
+        url_scrollbar = ttk.Scrollbar(url_frame, orient=tk.VERTICAL, command=self.url_text.yview)
+        url_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.url_text.config(yscrollcommand=url_scrollbar.set)
+
+        row += 1
+
+        # 提示文本
+        hint_label = ttk.Label(main_frame, text="支持多个链接，每行一个或用空格分隔",
+                              font=("Arial", 8), foreground="gray")
+        hint_label.grid(row=row, column=0, columnspan=3, sticky=tk.W, pady=(0, 5))
+        row += 1
+
+        # 下载按钮
+        download_button = ttk.Button(main_frame, text="开始下载", command=self.download_from_text)
+        download_button.grid(row=row, column=0, sticky=tk.W, pady=5)
+        row += 1
+
         # 进度条
         ttk.Label(main_frame, text="下载进度:").grid(row=row, column=0, sticky=tk.W, pady=(20, 5))
         row += 1
@@ -433,10 +544,10 @@ class YouTubeDownloader:
 
         # 使用说明
         help_text = """使用说明：
-1. 准备一个txt文件，每行一个YouTube链接
-2. 点击"选择链接文件"或直接拖放文件到窗口
-3. 程序会自动开始下载到指定路径
-4. 如需使用代理，请确保Clash等代理软件已启动"""
+方式1: 准备一个txt文件，每行一个YouTube链接，点击"选择链接文件"或拖放文件到窗口
+方式2: 直接在上方文本框中输入YouTube链接，支持多个链接（每行一个或空格分隔）
+• 勾选"优先下载最低画质"可节省流量和时间
+• 如需使用代理，请确保Clash等代理软件已启动并开放7890端口"""
 
         help_label = ttk.Label(main_frame, text=help_text, font=("Arial", 9),
                               foreground="gray", justify=tk.LEFT)
